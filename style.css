@@ -1,0 +1,91 @@
+/************ Representación del mapa ************/
+
+.province {
+    stroke: #000;
+    stroke-linejoin: round;
+    fill: transparent;
+}
+
+.arc text {
+    font: 20px sans-serif;
+    text-anchor: middle;
+}
+
+.arc path {
+    stroke: #FFF;
+}
+
+
+/************ Estilos de textos HTML ************/
+
+h1 {
+     font-family: "Helvetica Neue", Helvetica;
+ }
+
+h2 {
+    font-family: "Helvetica Neue", Helvetica;
+    font-size: 22px;
+}
+
+h3 {
+    font-family: "Helvetica Neue", Helvetica;
+    font-size: 16px;
+}
+
+
+/************ Layout para ordenar elementos ************/
+
+#layout {
+    position: relative;
+    top: 20px;
+    width: 1220px;
+}
+
+#TituloMapa {
+    position: absolute;
+    top: 0px;
+    width: 350px;
+    left: 130px;
+}
+
+#TituloGrafico {
+    position: absolute;
+    top: 0px;
+    width: 350px;
+    left: 720px;
+}
+
+#slider{
+     position: absolute;
+     top: 510px;
+     width: 300px;
+     left: 20px;
+}
+
+#select{
+    position: absolute;
+    top: 512px;
+    width: 300px;
+    left: 350px;
+}
+
+#Mapa {
+    position: absolute;
+    top: 10px;
+    width: 650px;
+    left : 0px;
+
+}
+
+#Grafico {
+    position: absolute;
+    top: 10px;
+    width: 600px;
+    left : 600px;
+}
+
+#datos {
+    position: absolute;
+    top: 850px;
+    width: 1220px;
+}

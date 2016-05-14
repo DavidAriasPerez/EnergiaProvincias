@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<div align="justify" style="width:1230px">
+    <img src="logotipoAporta.jpg" align="right" style="width:270px;height:100px">
+    <h1> POTENCIA INSTALADA (KW) - TIPOS, PROVINCIAS Y AÑOS </h1>
+    <h2> Mapa interactivo de España con la potencia instalada en kilowatios desde 1990 hasta 2011</h2>
+    <h3> Los datos utilizados se han descargado de la web de datos abiertos del gobierno de España:  <a href="http://www.datos.gob.es/">www.datos.gob.es</a> </h3>
+    <h3> En el mapa se codifica utilizando una escala de color la potencia instalada en cada provincia de acuerdo al tipo y año seleccionados en la zona inferior. <br/>
+         A la derecha se representa un gráfico con la relación de los tipos de energía de la provincia sobre la que está el ratón de acuerdo al año seleccionado. </h3>
+    <hr>
+</div>
+<div id="layout">
+
+    <div id="TituloMapa">
+        <h3>MAPA DE ESPAÑA POR PROVINCIAS</h3>
+    </div>
+    <div id="TituloGrafico">
+        <h3>PORCENTAJE DE POTENCIAS</h3>
+    </div>
+    <div id="Mapa">
+        <div id="slider">
+            <h3>Seleccionar año a mostrar:</h3>
+            <input type="range" id="barraTiempos" value="1990" min="1990" max="2011" style="width:210px">
+        </div>
+        <div id="select">
+            <h3>Seleccionar potencia a mostrar:</h3>
+        </div>
+    </div>
+    <div id="Grafico">
+    </div>
+</div>
+
+<div id="datos">
+    <hr>
+    <img src="epigijon.png" align="right" style="width:220px;height:80px">
+    <h3>Autor: David Arias Pérez, <a href="mailto:davidarias93@hotmail.com">davidarias93@hotmail.com</a>
+        - Escuela Politécnica de Ingeniería de Gijón, Universidad de Oviedo</h3>
+    <h3>Dpto. de Ingeniería Eléctrica, Electrónica, de Computadores y Sistemas -
+        Área de Ingeniería de Sistemas y Automática</h3>
+
+</div>
+
+</body>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script type="text/javascript" src="colorbrewer.js"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+    ///////////////////////////////////////////// VARIABLES GLOBALES /////////////////////////////////////////////
+
+    // Paámetros del SVG del mapa
+    var width = 650, height = 600;
+
+    // Parámetros del SVG del gráfico de quesitos
+    var widthG = 600, heightG = 600, radiusG = Math.min(widthG, heightG) / 2;
+
+    // Variable para igualar los datos leidos del CSV
+    var datos;
+
+    // Se leen los datos del csv y se almacenan en la variable global
+    d3.csv("ProdElectrica.csv",function(d){
+        datos = d
+    });
+
+    // Codificación de los 5 colores utilizados en el gráfico de quesitos
+    var colorG = d3.scale.ordinal().range(["#5EA1FF", "#525252", "#17FF45", "#FFFF00", "#DC5AFF"]);
+
+    // Variable para sector del diagrama de quesitos
+    var arc = d3.svg.arc().outerRadius(radiusG - 180).innerRadius(radiusG - 220);
+
+    // Función que calcula los ángulos de cada uno de los 5 sectores
+    var pie = d3.layout.pie().sort(null).value(function(d) { return d.POTENCIA; });
+
+    // Variable que guarda el año seleccionado por el usuario
+    var anio = 1990;
+
+    // Se crea el SVG del mapa
+    var svg = d3.select("#Mapa").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+    // Se añade al SVG del mapa la cadena de texto 'Potencia:'
+    svg.append("text")
+            .attr('class','pot')
+            .attr('x',380)
+            .attr('y',485)
+            .attr('font-famili','sans-serif')
+            .attr('font-size','20')
+            .text('POTENCIA (KW): ');
+
+    // Se añade al SVG del mapa la cadena de texto 'Año:'
+    svg.append("text")
+            .attr('class','an')
+            .attr('x',30)
+            .attr('y',485)
+            .attr('font-famili','sans-serif')
+            .attr('font-size','20')
+            .text('AÑO: '+anio);
+
+    // Se crea el SVG del gráfico de quesito
+    var svgG = d3.select("#Grafico").append("svg")
+            .attr("x",0)
+            .attr("y",0)
+            .attr("width", widthG)
+            .attr("height", heightG)
+            .append("g")
+            .attr("transform", "translate(" + ((widthG / 2)-70) + "," + (heightG / 2) + ")");
+
+    // Se añade al SVG del gráfico de quesito la cadena de texto 'Provincia:'
+    svgG.append("text")
+            .attr('class','prov')
+            .attr('x',-170)
+            .attr('y',-170)
+            .attr('font-famili','sans-serif')
+            .attr('font-size','20')
+            .text('DESLICE EL RATÓN' + '\n' + ' POR UNA PROVINCIA');
+
+    // Se añade un comboBox para seleccionar el tipo de potencia
+    var combo;
+
+    // Se crean las opciones del comboBox
+    var variables = new Array();
+    variables[0] = 'Total'
+    variables[1] = 'Hidroelectrica'
+    variables[2] = 'Termica'
+    variables[3] = 'Eolica'
+    variables[4] = 'Fotovoltaica'
+    variables[5] = 'Nuclear'
+
+    // Se guarda la seleccion inicial del comboBox
+    var opcion='Total'
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Se lee el archivo json con los datos del mapa de España y se ejecuta el resto del código
+    d3.json("es.json", function(error, es) {
+        if (error) return console.error(error);
+        console.log(es);
+
+        ///////////////////////////////////////////// VARIABLES  /////////////////////////////////////////////
+
+        // Variable en la que se guardan los datos de la provincia seleccionada para representar el quesito
+        var graf = new Array();
+
+        // Variable que almacena las instancias de tipo provinces
+        var provinces = topojson.feature(es, es.objects.provinces).features;
+
+        // Variable que almacena las instancias de tipo projection: parametros de la proyección del mapa
+        var projection = d3.geo.mercator()
+                .scale(2300)
+                .center([-2.5, 39.5])
+                .translate([width / 2, height / 2]);
+
+        // Función que lleva a cabo la proyección del mapa de acuerdo a la variable anterior
+        var path = d3.geo.path()
+                .projection(projection);
+
+        /////////////////////////////////////// REPRESENTACIÓN INICIAL  ///////////////////////////////////////
+
+        // Se llama a la función que dibuja la leyenda del g´rafico de quesitos
+        leyenda();
+
+        // Se asocia el cambio del select con la funcion update()
+        combo = d3.select('#select')
+                .append('select')
+                .on('change', function(d) {
+                    opcion = variables[combo.property('selectedIndex')]
+                    update()
+                })
+
+        // Se añaden las opciones al comboBox
+        comboOpt = combo
+                .selectAll('option').data(variables)
+                .enter()
+                .append('option')
+                .text(function(d){return d})
+
+        // Escala de color segun datos iniciales
+        extentDatos = d3.extent(datos, function (d) {return +d['Total']});
+        stepDatos = (extentDatos[1] - extentDatos[0]) / (9.0 - 1.0);
+        dominio = d3.range(extentDatos[0], extentDatos[1] + stepDatos, stepDatos);
+        rango = colorbrewer['BuPu'][9];
+        c = d3.scale.linear().domain(dominio).range(rango);
+
+        // Se almacenan en las porvincias los datos según los datos iniciales
+        provinces = provinces.filter(function (d) {
+            return datos.some(function (n) {
+                if (n.ANIO == anio)
+                    if (d.properties.name == n.PROVINCIA)
+                        return {
+                            PROVINCIA: d.PROVINCIA = n.PROVINCIA,
+                            Hidroelectrica: d.Hidroelectrica = n.Hidroelectrica,
+                            Termica: d.Termica = n.Termica,
+                            Eolica: d.Eolica = n.Eolica,
+                            Fotovoltaica: d.Fotovoltaica = n.Fotovoltaica,
+                            Nuclear: d.Nuclear = n.Nuclear,
+                            Total: d.Total = n.Total
+                        }
+            });
+        }); // Fin de selección de provincias
+
+        // Se dibujan las provicias de acuerdo a los datos iniciales
+        svg.selectAll(".province")
+                .data(provinces)
+                .enter()
+                .append("path")
+                .attr("d", path)
+                .style('stroke', '#000')
+                .style('fill', function (d) {return c(d.Total)})
+                .on("mouseover",function (d) {grafico(d)})
+                .on("mouseout",function (d) {borrarDatos(d)});;
+
+
+        // Se llama la función de Init  ue se encarga de llevar a cabo todos los cambios en la página
+        init();
+
+
+        /////////////////////////////////////// FUNCION UPDATE ///////////////////////////////////////
+        function update() {
+
+            // Se lee el año seleccionado por el usuario en la barra de tiempos
+            anio = barraTiempos.value;
+
+            // Se muestra el año seleccionado
+            d3.select('.an').attr('x',30).attr('y',485).text('AÑO: '+anio)
+
+            // Escala de color segun datos elegidos según selección de usuario
+            extentDatos = d3.extent(datos, function (d) {return +d[opcion]});
+            stepDatos = (extentDatos[1] - extentDatos[0]) / (9.0 - 1.0);
+            dominio = d3.range(extentDatos[0], extentDatos[1] + stepDatos, stepDatos);
+            rango = colorbrewer['BuPu'][9];
+            c = d3.scale.linear().domain(dominio).range(rango);
+
+            // Se almacenan en las porvincias los datos según la selección del usuario
+            provinces = provinces.filter(function (d) {
+                return datos.some(function (n) {
+                    if (n.ANIO == anio)
+                        if (d.properties.name == n.PROVINCIA)
+                            return {
+                                PROVINCIA: d.PROVINCIA = n.PROVINCIA,
+                                Hidroelectrica: d.Hidroelectrica = n.Hidroelectrica,
+                                Termica: d.Termica = n.Termica,
+                                Eolica: d.Eolica = n.Eolica,
+                                Fotovoltaica: d.Fotovoltaica = n.Fotovoltaica,
+                                Nuclear: d.Nuclear = n.Nuclear,
+                                Total: d.Total = n.Total
+                            }
+                });
+            }); // Fin de selección de provincias
+
+            // Se dibujan las provicias de acuerdo a los datos y la escala de color
+            svg.selectAll(".province")
+                    .data(provinces)
+                    .enter()
+                    .append("path")
+                    .attr("d", path)
+                    .style('stroke', '#000')
+                    .style('fill', function (d) {return c(d[opcion])})
+                    .on("mouseover",function (d) {grafico(d)})
+                    .on("mouseout",function (d) {borrarDatos(d)});
+
+        }; // Fin de función update()
+
+
+
+        //////////////////////////////////// FUNCION BORRAR DATOS ////////////////////////////////////
+        function borrarDatos(d){
+
+            // Se borra la provincia escrita y se pide al usuario que deslice el ratón por una provincia
+            d3.select('.prov').datum(d).attr('x',-170).attr('y',-170).text('DESLICE EL RATÓN POR UNA PROVINCIA')
+
+            // Se borra la potencia escrita
+            d3.select('.pot').datum(d).attr('x',380).attr('y',485).text('POTENCIA (KW): ')
+
+            // Se borran los sectores anteriores del gráfico de quesitos
+            g = svgG.selectAll(".arc")
+                    .data(pie(graf))
+                    .remove()
+                    .attr("class", "arc");
+
+        }; // Fin de función borrarDatos()
+
+
+        /////////////////////////////////////// FUNCION GRÁFICO ///////////////////////////////////////
+        function grafico(d){
+
+            // Se guarda la provincia seleccionada en una variable global
+            provSel = d;
+
+            // Se saca una cadena con la provincia sobre la que se encuentra el cursor del ratón
+            d3.select('.prov').datum(d).attr('x',-100).attr('y',-170).text(function (d) {return 'PROVINCIA: ' + d.PROVINCIA})
+
+            // Se saca la potencia que tiene la provincia seleccionada de acuerdo a la opción del comboBox
+            d3.select('.pot').datum(d).attr('x',380).attr('y',485).text(function (d) {return 'POTENCIA (KW): ' + d[opcion]})
+
+            // Se procesan los 5 tipos de potencia para la provincia sobre la que está el cursor
+            graf[0] = {NOMBRE: "Hidroeléctrica",POTENCIA: d.Hidroelectrica};
+            graf[1] = {NOMBRE: "Térmica",POTENCIA: d.Termica};
+            graf[2] = {NOMBRE: "Eólica",POTENCIA: d.Eolica};
+            graf[3] = {NOMBRE: "Fotovoltaica",POTENCIA: d.Fotovoltaica};
+            graf[4] = {NOMBRE: "Nuclear",POTENCIA: d.Nuclear};
+
+            // Se borran los sectores anteriores del gráfico de quesitos
+            g = svgG.selectAll(".arc")
+                    .data(pie(graf))
+                    .remove()
+                    .attr("class", "arc");
+
+            // Se crean nuevos sectores de acuerdo a las potencias almacenadas en grafico
+            g = svgG.selectAll(".arc")
+                    .data(pie(graf))
+                    .enter()
+                    .append("g")
+                    .attr("class", "arc");
+
+            // Se guarda el tipo de cada potencia existente en cada sector
+            g.append("path")
+                    .attr("d", arc)
+                    .style("fill",function(n) { return colorG(n.data.NOMBRE); });
+
+
+        }; // Fin de función gráfico()
+
+        /////////////////////////////////////// FUNCION LEYENDA ///////////////////////////////////////
+        function leyenda() {
+
+            // Color de potencia hidroeléctrica
+            svgG.append("rect")
+                    .attr('x',170)
+                    .attr('y',-60)
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill','#5EA1FF')
+
+            // Texto de potencia hidroeléctrica
+            svgG.append("text")
+                    .attr('x',190)
+                    .attr('y',-50)
+                    .text('HIDROELÉCTRICA')
+
+            // Color de potencia térmica
+            svgG.append("rect")
+                    .attr('x',170)
+                    .attr('y',-30)
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill','#525252')
+
+            // Texto de potencia térmica
+            svgG.append("text")
+                    .attr('x',190)
+                    .attr('y',-20)
+                    .text('TÉRMICA')
+
+            // Color de potencia eólica
+            svgG.append("rect")
+                    .attr('x',170)
+                    .attr('y',0)
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill','#17FF45')
+
+            // Texto de potencia eólica
+            svgG.append("text")
+                    .attr('x',190)
+                    .attr('y',10)
+                    .text('EÓLICA')
+
+            // Color de potencia fotovoltaica
+            svgG.append("rect")
+                    .attr('x',170)
+                    .attr('y',30)
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill','#FFFF00')
+
+            // Texto de potencia fotovoltaica
+            svgG.append("text")
+                    .attr('x',190)
+                    .attr('y',40)
+                    .text('FOTOVOLTAICA')
+
+            // Color de potencia nuclear
+            svgG.append("rect")
+                    .attr('x',170)
+                    .attr('y',60)
+                    .attr('width', 10)
+                    .attr('height', 10)
+                    .attr('fill','#DC5AFF')
+
+            // Texto de potencia nuclear
+            svgG.append("text")
+                    .attr('x',190)
+                    .attr('y',70)
+                    .text('NUCLEAR')
+        }// Fin de función leyenda()
+
+
+        /////////////////////////////////////// FUNCION INIT ///////////////////////////////////////
+        function init() {
+
+            // Cuando se interaccione con la linea de tiempos se llama a la función update()
+            d3.select("#barraTiempos")
+                    .on("mousemove", function () {
+                        update();
+                    })
+
+        }; // Fin de función init()
+
+    }); // Fin de lectura del jsonn
+
+
+
+</script>
+</html>
